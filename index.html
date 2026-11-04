@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proximity to Production — Classification Tool</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; background: #f5f4f0; color: #1a1a1a; min-height: 100vh; padding: 2rem 1rem 4rem; }
+  .page { max-width: 720px; margin: 0 auto; }
+  header { margin-bottom: 2.5rem; }
+  header h1 { font-size: 1.75rem; font-weight: 700; color: #1a1a1a; line-height: 1.2; margin-bottom: 0.4rem; }
+  header p { font-size: 0.9375rem; color: #666; line-height: 1.5; }
+  .progress-bar { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.5rem; }
+  .step-pip { width: 8px; height: 8px; border-radius: 99px; background: #ccc; transition: background 0.2s, width 0.2s; }
+  .step-pip.done { background: #2E5FA3; }
+  .step-pip.active { background: #2E5FA3; width: 20px; }
+  .card { background: #fff; border-radius: 12px; border: 1px solid #e0ddd6; padding: 1.75rem 2rem; margin-bottom: 1rem; }
+  .q-label { font-size: 0.8125rem; font-weight: 600; color: #999; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 0.5rem; }
+  .q-text { font-size: 1.0625rem; font-weight: 600; color: #1a1a1a; line-height: 1.4; margin-bottom: 1.25rem; }
+  .options { display: flex; flex-direction: column; gap: 0.5rem; }
+  .opt-btn { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.875rem 1rem; background: #f9f8f5; border: 1px solid #e0ddd6; border-radius: 8px; cursor: pointer; text-align: left; font-size: 0.9375rem; color: #333; line-height: 1.4; font-family: inherit; transition: background 0.12s, border-color 0.12s; }
+  .opt-btn:hover { background: #eef3fb; border-color: #2E5FA3; color: #1a1a1a; }
+  .opt-btn.selected { background: #deeaf8; border-color: #2E5FA3; color: #1a3a6e; font-weight: 500; }
+  .opt-icon { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #ccc; flex-shrink: 0; margin-top: 1px; display: flex; align-items: center; justify-content: center; transition: border-color 0.12s, background 0.12s; }
+  .opt-btn:hover .opt-icon { border-color: #2E5FA3; }
+  .opt-btn.selected .opt-icon { border-color: #2E5FA3; background: #2E5FA3; }
+  .opt-btn.selected .opt-icon::after { content: ""; display: block; width: 6px; height: 6px; border-radius: 50%; background: #fff; }
+  .opt-label { font-weight: 600; display: block; margin-bottom: 2px; }
+  .opt-sub { font-size: 0.8125rem; color: #666; line-height: 1.4; }
+  .opt-btn.selected .opt-sub { color: #2a4a8a; }
+  .result-card { background: #fff; border-radius: 12px; overflow: hidden; margin-bottom: 1rem; border: 2px solid #2E5FA3; }
+  .result-header { padding: 1.25rem 2rem; display: flex; align-items: center; gap: 1rem; }
+  .tier-badge { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0; font-weight: 700; line-height: 1; color: #fff; }
+  .tier-badge span:first-child { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; }
+  .tier-badge span:last-child { font-size: 2rem; }
+  .result-title { font-size: 1.25rem; font-weight: 700; color: #1a1a1a; }
+  .result-sub { font-size: 0.875rem; color: #666; margin-top: 2px; }
+  .result-body { padding: 0 2rem 1.5rem; }
+  .result-section { margin-bottom: 1rem; }
+  .result-section-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #999; margin-bottom: 0.25rem; }
+  .result-section p { font-size: 0.9375rem; color: #333; line-height: 1.6; }
+  .actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+  .btn-restart { padding: 0.625rem 1.25rem; background: none; border: 1px solid #ccc; border-radius: 8px; font-size: 0.9375rem; color: #555; cursor: pointer; font-family: inherit; transition: border-color 0.12s, color 0.12s; }
+  .btn-restart:hover { border-color: #555; color: #1a1a1a; }
+  .btn-back { margin-top: 0.75rem; padding: 0.5rem 0; background: none; border: none; font-size: 0.875rem; color: #888; cursor: pointer; font-family: inherit; transition: color 0.12s; }
+  .btn-back:hover { color: #1a1a1a; }
+  .intro-card { background: #fff; border-radius: 12px; border: 1px solid #e0ddd6; padding: 1.75rem 2rem; margin-bottom: 1rem; }
+  .intro-card h2 { font-size: 1.0625rem; font-weight: 700; color: #1a1a1a; margin-bottom: 0.75rem; }
+  .intro-card p { font-size: 0.9375rem; color: #444; line-height: 1.65; margin-bottom: 0.875rem; }
+  .intro-card p:last-of-type { margin-bottom: 1.25rem; }
+  .intro-card .principle { background: #f5f4f0; border-left: 3px solid #2E5FA3; border-radius: 0 6px 6px 0; padding: 0.75rem 1rem; margin-bottom: 0.875rem; font-size: 0.9375rem; color: #1a1a1a; line-height: 1.55; }
+  .intro-card .principle strong { display: block; font-weight: 700; margin-bottom: 0.2rem; }
+  .btn-start { width: 100%; padding: 0.875rem 1.5rem; background: #2E5FA3; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; color: #fff; cursor: pointer; font-family: inherit; transition: background 0.12s; }
+  .btn-start:hover { background: #1d4a85; }
+  .btn-print { padding: 0.625rem 1.25rem; background: #2E5FA3; border: none; border-radius: 8px; font-size: 0.9375rem; color: #fff; cursor: pointer; font-family: inherit; }
+  .btn-print:hover { background: #1d4a85; }
+  .t1 { background: #D85A30; } .t1b { border-color: #D85A30; }
+  .t2 { background: #993C1D; } .t2b { border-color: #993C1D; }
+  .t3 { background: #185FA5; } .t3b { border-color: #185FA5; }
+  .t4 { background: #BA7517; } .t4b { border-color: #BA7517; }
+  .ref-section { margin-top: 3rem; }
+  .ref-section h2 { font-size: 1rem; font-weight: 700; color: #1a1a1a; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #e0ddd6; }
+  .tier-row { display: flex; gap: 0.75rem; align-items: flex-start; padding: 0.875rem 0; border-bottom: 1px solid #f0ede6; }
+  .tier-dot { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9375rem; flex-shrink: 0; margin-top: 1px; color: #fff; }
+  .tier-row-content h3 { font-size: 0.9375rem; font-weight: 600; color: #1a1a1a; margin-bottom: 2px; }
+  .tier-row-content p { font-size: 0.875rem; color: #666; line-height: 1.5; }
+  @media (max-width: 540px) { .card, .result-body { padding-left: 1.25rem; padding-right: 1.25rem; } .result-header { padding: 1rem 1.25rem; } }
+  @media print { body { background: #fff; padding: 0; } .actions { display: none; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>Proximity to Production</h1>
+    <p>Two questions to find your proximity to production tier.</p>
+    <p style="margin-top:0.5rem;font-size:0.8125rem;font-weight:600;color:#BA7517;letter-spacing:0.04em;">BETA Tool — November 2026</p>
+  </header>
+  <div class="progress-bar" id="progress"></div>
+  <div id="tool"></div>
+</div>
+<script>
+const TIERS = {
+  1: { name: "Production worker", colorClass: "t1", borderClass: "t1b",
+    def: "Performs or directly supervises the physical work of agricultural production, regardless of income source. This applies whether production is someone's sole livelihood or one of several professional roles they hold.",
+    examples: "Owner-operators who work the land, farm managers making daily operational decisions, farmworkers and farm employees, working ranch family members, producers who also hold an off-farm job." },
+  2: { name: "Production-integrated", colorClass: "t2", borderClass: "t2b",
+    def: "Does not perform production labor, but works within or in direct operational partnership with a production environment — either employed by the operation or serving as an on-farm advisor whose work directly shapes production decisions alongside the production team.",
+    examples: "Farm/ranch HR, accounting, IT, and logistics staff; co-op coordinators; on-farm agronomists; pest control advisors (PCAs); crop consultants; custom applicators working in direct partnership with a specific operation." },
+  3: { name: "Production services", colorClass: "t3", borderClass: "t3b",
+    def: "Does not perform production labor and is not operationally embedded in a specific production environment. Serves agriculture through a separate organization, with a relationship to any individual farm that is transactional, intermittent, or systemic.",
+    examples: "Input sales reps, agricultural lobbyists, extension or agricultural educators, ag lenders, crop insurance agents, USDA/NRCS/FSA staff, state department of agriculture or agriculturally related agency staff, ag attorneys, researchers, commodity traders, ag real estate agents, produce buyers, food brokers, rural bankers." },
+  4: { name: "Production stake (non-labor)", colorClass: "t4", borderClass: "t4b",
+    def: "Holds an ownership, investment, or financial stake in a production operation but has no operational or advisory role in it. Their connection to agriculture is rooted in land stewardship, capital commitment, or long-term investment. This is a different kind of connection to production, not a lesser one.",
+    examples: "Cash-rent landowners, absentee investors in farming LLCs, silent partners in ranches, anyone whose agricultural connection is through land ownership or financial investment." },
+};
+
+const QUESTIONS = [
+  { id: "labor", label: "Question 1 of 2",
+    text: "Do you perform or directly supervise the physical work of agricultural production — cropping decisions, planting, harvesting, livestock care, irrigation management, and similar tasks?",
+    options: [
+      { label: "Yes", sub: "I do this work or directly oversee others who do, even if I also hold an off-farm job", val: "yes" },
+      { label: "No", sub: "I do not perform or directly supervise production labor", val: "no" },
+    ]},
+  { id: "embedded", label: "Question 2 of 2",
+    text: "Which best describes your relationship to agricultural production?",
+    options: [
+      { label: "I am employed by a production operation", sub: "My organizational home is inside a farm, ranch, nursery, or ag enterprise (in any role — production, admin, HR, IT, logistics, etc.)", val: "employed" },
+      { label: "I work on-farm as an outside advisor", sub: "I come from outside the operation but work on-farm directly alongside the production team (agronomist, PCA, crop consultant, custom applicator)", val: "advisor" },
+      { label: "I work primarily off-farm in a role that serves agriculture", sub: "My work supports agriculture but isn't tied to one specific operation — e.g., ag lender, crop insurance agent, extension educator, input sales rep, USDA/NRCS/FSA staff, ag attorney, researcher, commodity trader, produce buyer, lobbyist", val: "separate" },
+      { label: "My connection is financial or ownership-based", sub: "I have an ownership, investment, or land stake in a production operation but no operational or advisory role", val: "stake" },
+    ],
+    showIf: a => a.labor === "no" },
+];
+
+let answers = {}, step = 0, resultTier = null, showIntro = true;
+
+function computeTier() {
+  if (answers.labor === "yes") return 1;
+  if (answers.embedded === "employed" || answers.embedded === "advisor") return 2;
+  if (answers.embedded === "separate") return 3;
+  if (answers.embedded === "stake") return 4;
+  return null;
+}
+
+function getActiveQs() { return QUESTIONS.filter(q => !q.showIf || q.showIf(answers)); }
+
+function renderProgress() {
+  const bar = document.getElementById("progress");
+  const qs = getActiveQs();
+  bar.innerHTML = "";
+  qs.forEach((_, i) => {
+    const pip = document.createElement("div");
+    pip.className = "step-pip" + (i < step ? " done" : i === step ? " active" : "");
+    bar.appendChild(pip);
+  });
+}
+
+function renderTool() {
+  const el = document.getElementById("tool");
+
+  if (showIntro) {
+    document.getElementById("progress").innerHTML = "";
+    el.innerHTML = `
+      <div class="intro-card">
+        <h2>How this works</h2>
+        <p>This tool uses CALF's Proximity to Production framework to place you in one of four tiers based on your relationship to agricultural production. There are just two questions.</p>
+        <p>Proximity is determined by <strong>where you spend your time</strong>, not where your income comes from. Many people in agriculture have financial ties to production in multiple ways — that's expected and accounted for. Answer based on the work you actually do day to day.</p>
+        <div class="principle"><strong>If you have more than one role</strong> Think about the full picture of how you engage with agriculture. If any part of your work involves performing or directly supervising the physical work of production, answer yes to the first question — even if you also hold an off-farm job or have other professional roles.</div>
+        <div class="principle"><strong>A production operation</strong> is a farm, ranch, nursery, or other place where food or fiber is grown or raised — including one you own, operate, or work for, even if it's one of several roles you hold.</div>
+        <div class="principle"><strong>How this is used</strong> You'll self-identify your tier as part of the application. CALF staff will review and verify accuracy upon submission of your application.</div>
+        <button class="btn-start" onclick="startTool()">Get started →</button>
+      </div>`;
+    return;
+  }
+
+  renderProgress();
+
+  if (resultTier !== null) {
+    const t = TIERS[resultTier];
+    el.innerHTML = `
+      <div class="result-card ${t.borderClass}">
+        <div class="result-header">
+          <div class="tier-badge ${t.colorClass}"><span>Tier</span><span>${resultTier}</span></div>
+          <div><div class="result-title">${t.name}</div><div class="result-sub">Your proximity tier</div></div>
+        </div>
+        <div class="result-body">
+          <div class="result-section"><div class="result-section-label">Definition</div><p>${t.def}</p></div>
+          <div class="result-section"><div class="result-section-label">Includes</div><p>${t.examples}</p></div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn-restart" onclick="restart()">Start over</button>
+        <button class="btn-print" onclick="window.print()">Print / save as PDF</button>
+      </div>
+      <p style="margin-top:1.25rem;font-size:0.875rem;color:#666;line-height:1.6;">Questions about your results? Contact <strong>Judy Sparacino</strong>, Programs Manager, at <a href="mailto:jsparacino@agleaders.org" style="color:#2E5FA3;">jsparacino@agleaders.org</a>.</p>`;
+    document.getElementById("progress").innerHTML = "";
+    return;
+  }
+
+  const activeQs = getActiveQs();
+  if (step >= activeQs.length) { resultTier = computeTier(); renderTool(); return; }
+  const q = activeQs[step];
+  const opts = q.options.map(o => `
+    <button class="opt-btn${answers[q.id] === o.val ? " selected" : ""}" onclick="choose('${q.id}','${o.val}')">
+      <span class="opt-icon"></span>
+      <div><span class="opt-label">${o.label}</span><span class="opt-sub">${o.sub}</span></div>
+    </button>`).join("");
+  const backBtn = `<button class="btn-back" onclick="goBack()">← Back</button>`;
+  el.innerHTML = `<div class="card"><div class="q-label">${q.label}</div><div class="q-text">${q.text}</div><div class="options">${opts}</div></div>${backBtn}`;
+}
+
+function choose(qid, val) {
+  answers[qid] = val;
+  if (qid === "labor") {
+    if (val === "yes") { resultTier = computeTier(); }
+    else { step = 1; }
+  } else if (qid === "embedded") {
+    resultTier = computeTier();
+  }
+  renderTool();
+}
+
+function startTool() { showIntro = false; renderTool(); }
+function goBack() {
+  if (step === 0) { showIntro = true; answers = {}; resultTier = null; renderTool(); return; }
+  step = Math.max(0, step - 1); delete answers[QUESTIONS[step].id]; resultTier = null; renderTool();
+}
+function restart() { answers = {}; step = 0; resultTier = null; showIntro = true; renderTool(); }
+renderTool();
+</script>
+</body>
+</html>
